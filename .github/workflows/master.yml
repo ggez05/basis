@@ -1,12 +1,8 @@
 name: Automated Commit
 
 on:
-  push:
-    branches: [master] # Ensures the workflow triggers on pushes to master
-
   schedule:
-    - cron: '0 */10 * * *' # Executes every 6 hours
-
+    - cron: '0 * * * *' # Executes every hour
   workflow_dispatch: # Allows manual triggering from the GitHub UI
 
 permissions:
@@ -18,7 +14,7 @@ jobs:
 
     steps:
       - name: Setup Debug Information
-        run: echo "::debug::Triggered by ref = ${{github.ref}}"
+        run: echo "::debug::Triggered by ref = ${{ github.ref }}"
 
       - name: Checkout Code
         uses: actions/checkout@v3 # Latest version for optimized performance
@@ -26,25 +22,55 @@ jobs:
           persist-credentials: true # Ensures credentials are available for subsequent steps
           fetch-depth: 0 # Fetches all history for all branches and tags
 
+      - name: Calculate Commit Probability
+        id: commit_prob
+        run: |
+          # Get the current hour in UTC (0-23)
+          current_hour=$(date -u +'%H')
+          # Calculate a weight based on the hour to prioritize higher numbers
+          # For example, later hours have higher weights
+          weight=$((10#$current_hour + 1)) # Convert to decimal and add 1 to avoid zero
+          max_weight=24
+          # Generate a random number between 1 and max_weight
+          random_num=$((RANDOM % max_weight + 1))
+          echo "Current Hour (UTC): $current_hour"
+          echo "Weight: $weight"
+          echo "Random Number: $random_num"
+          # Decide whether to commit based on weighted probability
+          if [ "$random_num" -le "$weight" ]; then
+            echo "commit=true" >> $GITHUB_OUTPUT
+          else
+            echo "commit=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip Commit if Not Selected
+        if: steps.commit_prob.outputs.commit == 'false'
+        run: echo "Skipping commit this run."
+
       - name: Update Timestamp File
+        if: steps.commit_prob.outputs.commit == 'true'
         run: |
           current_time=$(date '+%Y-%m-%d %H:%M:%S')
           echo "Updated on $current_time" > TIMESTAMP.txt
 
       - name: Setup Git Configuration
+        if: steps.commit_prob.outputs.commit == 'true'
         run: |
           git config user.email "garvit510bhatia@gmail.com"
           git config user.name "ggez05"
 
       - name: Prepare Commit
+        if: steps.commit_prob.outputs.commit == 'true'
         run: |
           commit_messages=("Update: ⏰" "Refresh: 🔄" "Renew: 🌟" "Revise: 📝" "Amend: 🛠" "Adjust: 🔧" "Change: 📈" "Modify: 🖊" "Transform: 🌀" "Revamp: 🌈")
+          current_time=$(date '+%Y-%m-%d %H:%M:%S')
           random_msg=${commit_messages[$RANDOM % ${#commit_messages[@]}]}
-
+          
           git add TIMESTAMP.txt
           git commit -m "$random_msg - $current_time" || echo "No changes to commit."
 
       - name: GitHub Push
+        if: steps.commit_prob.outputs.commit == 'true'
         uses: ad-m/github-push-action@v0.6.0
         with:
           directory: '.'

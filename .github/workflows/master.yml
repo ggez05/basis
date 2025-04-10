@@ -30,7 +30,7 @@ jobs:
           # Calculate a weight based on the hour to prioritize higher numbers
           # For example, later hours have higher weights
           weight=$((10#$current_hour + 1)) # Convert to decimal and add 1 to avoid zero
-          max_weight=24
+          max_weight=12
           # Generate a random number between 1 and max_weight
           random_num=$((RANDOM % max_weight + 1))
           echo "Current Hour (UTC): $current_hour"

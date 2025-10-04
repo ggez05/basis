@@ -25,23 +25,25 @@ jobs:
       - name: Calculate Commit Probability
         id: commit_prob
         run: |
-          # Get the current hour in UTC (0-23)
-          current_hour=$(date -u +'%H')
-          # Calculate a weight based on the hour to prioritize higher numbers
-          # For example, later hours have higher weights
-          weight=$((10#$current_hour + 1)) # Convert to decimal and add 1 to avoid zero
-          max_weight=12
-          # Generate a random number between 1 and max_weight
-          random_num=$((RANDOM % max_weight + 1))
-          echo "Current Hour (UTC): $current_hour"
-          echo "Weight: $weight"
-          echo "Random Number: $random_num"
-          # Decide whether to commit based on weighted probability
-          if [ "$random_num" -le "$weight" ]; then
-            echo "commit=true" >> $GITHUB_OUTPUT
-          else
-            echo "commit=false" >> $GITHUB_OUTPUT
-          fi
+         dow=$(date -u +'%u')
+         if [ "$dow" -ge 6 ]; then
+           r=$((RANDOM % 100 + 1))
+           if [ "$r" -le 2 ]; then
+             echo "commit=true" >> $GITHUB_OUTPUT
+           else
+             echo "commit=false" >> $GITHUB_OUTPUT
+           fi
+         else
+           current_hour=$(date -u +'%H')
+           weight=$((10#$current_hour + 1))
+           max_weight=12
+           random_num=$((RANDOM % max_weight + 1))
+           if [ "$random_num" -le "$weight" ]; then
+             echo "commit=true" >> $GITHUB_OUTPUT
+           else
+             echo "commit=false" >> $GITHUB_OUTPUT
+           fi
+         fi
 
       - name: Skip Commit if Not Selected
         if: steps.commit_prob.outputs.commit == 'false'
